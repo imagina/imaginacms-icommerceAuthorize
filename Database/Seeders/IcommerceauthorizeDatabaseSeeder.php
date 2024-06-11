@@ -2,50 +2,67 @@
 
 namespace Modules\Icommerceauthorize\Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Seeder;
 use Modules\Icommerce\Entities\PaymentMethod;
 
 class IcommerceauthorizeDatabaseSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     *
-     * @return void
      */
-    public function run()
+    public function run(): void
     {
         Model::unguard();
 
-        $options['init'] = "Modules\Icommerceauthorize\Http\Controllers\Api\IcommerceAuthorizeApiController";
-        $options['mainimage'] = null;
-        $options['apilogin'] = "";
-        $options['transactionkey'] = "";
-        $options['clientkey'] = "";
-        $options['mode'] = "sandbox";
+        $this->call(IcommerceauthorizeModuleTableSeeder::class);
+        if (! is_module_enabled('Icommerceauthorize')) {
+            $this->command->alert('This module: Icommerceauthorize is DISABLED!! , please enable the module and then run the seed');
+            exit();
+        }
 
-        $titleTrans = 'icommerceauthorize::icommerceauthorizes.single';
-        $descriptionTrans = 'icommerceauthorize::icommerceauthorizes.description';
+        //Validation if the module has been installed before
+        $name = config('asgard.icommerceauthorize.config.paymentName');
+        $result = PaymentMethod::where('name', $name)->first();
 
-        foreach (['en', 'es'] as $locale) {
-            if($locale=='en'){
-                $params = array(
-                    'title' => trans($titleTrans),
-                    'description' => trans($descriptionTrans),
-                    'name' => config('asgard.icommerceauthorize.config.paymentName'),
-                    'status' => 0,
-                    'options' => $options
-                );
-                $paymentMethod = PaymentMethod::create($params);
-                
-            }else{
-                $title = trans($titleTrans,[],$locale);
-                $description = trans($descriptionTrans,[],$locale);
-                $paymentMethod->translateOrNew($locale)->title = $title;
-                $paymentMethod->translateOrNew($locale)->description = $description;
-                $paymentMethod->save();
-            }
-        }// Foreach
+        if (! $result) {
+            $options['init'] = "Modules\Icommerceauthorize\Http\Controllers\Api\IcommerceAuthorizeApiController";
+            $options['apiLogin'] = '';
+            $options['transactionKey'] = '';
+            $options['clientKey'] = '';
+            $options['mode'] = 'sandbox';
+            $options['minimunAmount'] = 0;
+            $options['maximumAmount'] = null;
+            $options['showInCurrencies'] = ['USD'];
 
+            $titleTrans = 'Authorize';
+            $descriptionTrans = 'icommerceauthorize::icommerceauthorizes.description';
+
+            $params = [
+                'name' => $name,
+                'status' => 1,
+                'options' => $options,
+            ];
+            $paymentMethod = PaymentMethod::create($params);
+
+            $this->addTranslation($paymentMethod, 'en', $titleTrans, $descriptionTrans);
+            $this->addTranslation($paymentMethod, 'es', $titleTrans, $descriptionTrans);
+        } else {
+            $this->command->alert('This method has already been installed !!');
+        }
+    }
+
+    /*
+    * Add Translations
+    * PD: New Alternative method due to problems with astronomic translatable
+    **/
+    public function addTranslation($paymentMethod, $locale, $title, $description)
+    {
+        \DB::table('icommerce__payment_method_translations')->insert([
+            'title' => trans($title, [], $locale),
+            'description' => trans($description, [], $locale),
+            'payment_method_id' => $paymentMethod->id,
+            'locale' => $locale,
+        ]);
     }
 }

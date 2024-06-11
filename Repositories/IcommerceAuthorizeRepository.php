@@ -6,8 +6,7 @@ use Modules\Core\Repositories\BaseRepository;
 
 interface IcommerceAuthorizeRepository extends BaseRepository
 {
-    public function encriptUrl($orderID,$transactionID,$currencyID);
+    public function calculate($parameters, $conf);
 
     public function decriptUrl($eUrl);
-
 }
